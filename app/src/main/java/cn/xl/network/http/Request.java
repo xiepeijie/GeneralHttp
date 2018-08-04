@@ -67,6 +67,12 @@ public class Request<T> {
         return this;
     }
 
+    public Request addText(String key, String text) {
+        RequestBody requestBody = RequestBody.create(MediaType.parse("text/*"), text);
+        files.put(key, requestBody);
+        return this;
+    }
+
     public Request addFilePath(String key, String filePath) {
         File file = new File(filePath);
         addFile(key, file);

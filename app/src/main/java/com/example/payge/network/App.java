@@ -6,6 +6,9 @@ import cn.xl.network.http.Config;
 import cn.xl.network.http.Http;
 
 public final class App extends Application {
+
+    public static String token;
+
     @Override
     public void onCreate() {
         super.onCreate();

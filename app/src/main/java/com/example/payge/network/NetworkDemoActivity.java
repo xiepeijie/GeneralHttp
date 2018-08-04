@@ -1,5 +1,6 @@
 package com.example.payge.network;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -25,7 +26,7 @@ import java.util.List;
 
 import cn.xl.network.http.Http;
 
-public class NetworkDemoActivity extends AppCompatActivity implements View.OnClickListener, Runnable {
+public class NetworkDemoActivity extends AppCompatActivity implements View.OnClickListener {
 
     NetworkDemoController controller;
     TextView httpView;
@@ -58,11 +59,6 @@ public class NetworkDemoActivity extends AppCompatActivity implements View.OnCli
         commonAdapter = new CommonAdapter();
 
         controller.login();
-        controller.download();
-    }
-
-    @Override
-    public void run() {
         controller.getStoryList(new Http.Callback<StoriesResponse>() {
             @Override
             protected void onSuccess(StoriesResponse response) {
@@ -92,6 +88,7 @@ public class NetworkDemoActivity extends AppCompatActivity implements View.OnCli
             dataView.setAdapter(bannerAdapter);
         }
         showList = !showList;
+        startActivity(new Intent(this, UploadDownloadActivity.class));
     }
 
     static class BannerAdapter extends RecyclerView.Adapter<ViewHolder> {
@@ -110,9 +107,9 @@ public class NetworkDemoActivity extends AppCompatActivity implements View.OnCli
         @Override
         public void onBindViewHolder(@NonNull ViewHolder viewHolder, int i) {
             Banner banner = banners.get(i);
-//            Glide.with(viewHolder.imageView.getContext())
-//                    .load(banner.image).placeholder(holder)
-//                    .crossFade().into(viewHolder.imageView);
+            Glide.with(viewHolder.imageView.getContext())
+                    .load(banner.image).placeholder(holder)
+                    .crossFade().into(viewHolder.imageView);
             viewHolder.imageView.setImageDrawable(holder);
             viewHolder.textView.setText(banner.title);
         }

@@ -5,6 +5,7 @@ import android.arch.lifecycle.GenericLifecycleObserver;
 import android.arch.lifecycle.Lifecycle;
 import android.arch.lifecycle.LifecycleOwner;
 import android.content.Context;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
@@ -12,6 +13,7 @@ import android.widget.Toast;
 
 import com.google.gson.Gson;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -91,7 +93,6 @@ public final class Http implements GenericLifecycleObserver {
         protected abstract void onSuccess(T t);
         protected abstract void onError(int errorCode, String msg);
         protected void onProgress(int progress){}
-        protected void onDownloaded(byte[] file){}
     }
 
     private static Http api = new Http();
@@ -142,7 +143,7 @@ public final class Http implements GenericLifecycleObserver {
                         if (!config.getHeaders().isEmpty()) {
                             Set<Map.Entry<String, String>> entrySet = config.getHeaders().entrySet();
                             for (Map.Entry<String, String> entry : entrySet) {
-                                builder.addHeader(entry.getKey(), entry.getValue());
+                                builder.header(entry.getKey(), entry.getValue());
                             }
                         }
                         return chain.proceed(builder.build());
@@ -164,14 +165,14 @@ public final class Http implements GenericLifecycleObserver {
     }
 
     /**
-     * @param keys 需要取消的请求的url
+     * @param urls 需要取消的请求的url
      */
-    private void cancel(String... keys) {
-        if (keys == null || keys.length == 0) return;
+    public void cancelByUrl(String... urls) {
+        if (urls == null || urls.length == 0) return;
         Collection<List<Pair<Integer, Disposable>>> pairList;
         pairList = disposableCache.values();
         boolean isBreak;
-        for (String key : keys) {
+        for (String key : urls) {
             isBreak = false;
             for (List<Pair<Integer, Disposable>> list : pairList) {
                 for (Pair<Integer, Disposable> pair : list) {
@@ -270,7 +271,7 @@ public final class Http implements GenericLifecycleObserver {
                     return chain.proceed(okHttpRequest);
                 }
             };
-            OkHttpClient.Builder builder = new OkHttpClient.Builder();
+            OkHttpClient.Builder builder = client.newBuilder();
             builder.addInterceptor(uploadProgressInterceptor);
             uploadClient = builder.build();
         }
@@ -280,70 +281,6 @@ public final class Http implements GenericLifecycleObserver {
         Log.i(TAG, "file count: " + request.files.size());
         observable = http.rxJavaUpload(request.path, request.headers, request.files);
         process(tag, request, callback, observable);
-    }
-
-    public <T> void download(String url, final Callback<T> callback) {
-        download(null, url, callback);
-    }
-
-    public <T> void download(final Object tag, String url, final Callback<T> callback) {
-        callback.onStart();
-        if (downloadProgressInterceptor == null) {
-            downloadProgressInterceptor = new Interceptor() {
-                @Override
-                public Response intercept(Chain chain) throws IOException {
-                    Response response = chain.proceed(chain.request());
-                    ResponseBody body = response.body();
-                    if (body != null) {
-                        Log.i(TAG, "download intercept: " + body.getClass().getSimpleName());
-                        ProgressResponseBody prb = new ProgressResponseBody(body.contentType(), body.contentLength(), body.source());
-                        prb.setProgressListener(callback);
-                        response = response.newBuilder().body(prb).build();
-                    }
-                    return response;
-                }
-            };
-            downloadClient = new OkHttpClient.Builder().addInterceptor(downloadProgressInterceptor).build();
-        }
-        retrofit = retrofit.newBuilder().client(downloadClient).build();
-        HttpApi http = retrofit.create(HttpApi.class);
-        Observable<ResponseBody> observable;
-        observable = http.rxJavaDownload(url);
-        Observable<String> mapObservable = observable.map(new Function<ResponseBody, String>() {
-            @Override
-            public String apply(ResponseBody body) throws Exception {
-                callback.onDownloaded(body.bytes());
-                return "";
-            }
-        });
-        final int hash = tag == null ? COMMON_TAG.hashCode() : tag.hashCode();
-        final String pathKey = url;
-        mapObservable.observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Observer<String>() {
-                    @Override
-                    public void onSubscribe(Disposable disposable) {
-                        Log.i(TAG, "onSubscribe: " + pathKey);
-                        registerLifecycle(tag);
-                        cacheDisposableIfNeed(disposable, hash, pathKey);
-                    }
-
-                    @Override
-                    public void onNext(String non) {}
-
-                    @Override
-                    public void onError(Throwable throwable) {
-                        Log.e(TAG, "onError", throwable);
-                        dispose(hash, pathKey);
-                        callback.onError(-1, throwable.getMessage());
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        Log.i(TAG, "onComplete");
-                        dispose(hash, pathKey);
-                        callback.onSuccess(null);
-                    }
-                });
     }
 
     private <T, E> void process(final Object tag, @NonNull final Request<E> request, @NonNull final Callback<T> callback,
@@ -420,6 +357,91 @@ public final class Http implements GenericLifecycleObserver {
                     @Override
                     public void onComplete() {
                         dispose(hash, pathKey);
+                    }
+                });
+    }
+
+    public <T> void download(String url, final Callback<T> callback) {
+        download(null, url, callback);
+    }
+
+    public <T> void download(Object tag, String url, final Callback<T> callback) {
+        download(tag, null, url, callback);
+    }
+
+    public <T> void download(File dir, String url, final Callback<T> callback) {
+        download(null, dir, url, callback);
+    }
+
+    public <T> void download(final Object tag, final File dir, final String url, final Callback<T> callback) {
+        callback.onStart();
+        final File cacheDir = dir == null ? Environment.getExternalStoragePublicDirectory("Download") : dir;
+        if (downloadProgressInterceptor == null) {
+            downloadProgressInterceptor = new Interceptor() {
+                @Override
+                public Response intercept(Chain chain) throws IOException {
+                    okhttp3.Request request = chain.request();
+                    Response response = chain.proceed(request);
+                    ResponseBody body = response.body();
+                    File file = new File(cacheDir, ProgressResponseBody.getNameByUrl(url));
+                    Log.i(TAG, "breakpoint: " + file.length());
+                    if (file.exists() && body != null) {
+                        Log.i(TAG, "contentLength: " + body.contentLength());
+                        long length = file.length();
+                        if (file.length() >= body.contentLength()) {
+                            return response;
+                        }
+                        request = chain.request().newBuilder()
+                                .header("RANGE", "bytes=" + length + "-")
+                                .build();
+                        return chain.proceed(request);
+                    }
+                    return response;
+                }
+            };
+            downloadClient = new OkHttpClient.Builder().addInterceptor(downloadProgressInterceptor).build();
+        }
+        retrofit = retrofit.newBuilder().client(downloadClient).build();
+        HttpApi http = retrofit.create(HttpApi.class);
+        Observable<ResponseBody> observable;
+        observable = http.rxJavaDownload(url);
+        Observable<String> mapObservable = observable.map(new Function<ResponseBody, String>() {
+            @Override
+            public String apply(ResponseBody body) throws Exception {
+                Log.i(TAG, "apply: body bytes before");
+                ProgressResponseBody prb = new ProgressResponseBody(body.contentLength(), body.source());
+                prb.setProgressListener(callback).setDir(cacheDir).setUrl(url);
+                prb.saveContent();
+                Log.i(TAG, "apply: body bytes after");
+                return "";
+            }
+        });
+        final int hash = tag == null ? COMMON_TAG.hashCode() : tag.hashCode();
+        final String pathKey = url;
+        mapObservable.observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<String>() {
+                    @Override
+                    public void onSubscribe(Disposable disposable) {
+                        Log.i(TAG, "onSubscribe: " + pathKey);
+                        registerLifecycle(tag);
+                        cacheDisposableIfNeed(disposable, hash, pathKey);
+                    }
+
+                    @Override
+                    public void onNext(String non) {}
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        Log.e(TAG, "onError", throwable);
+                        dispose(hash, pathKey);
+                        callback.onError(-1, throwable.getMessage());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.i(TAG, "onComplete");
+                        dispose(hash, pathKey);
+                        callback.onSuccess(null);
                     }
                 });
     }

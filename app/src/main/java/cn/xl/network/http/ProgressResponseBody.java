@@ -3,69 +3,97 @@ package cn.xl.network.http;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 
+import java.io.File;
 import java.io.IOException;
 
 import okhttp3.MediaType;
 import okhttp3.ResponseBody;
 import okio.Buffer;
+import okio.BufferedSink;
 import okio.BufferedSource;
-import okio.ForwardingSource;
 import okio.Okio;
-import okio.Source;
 
-class ProgressResponseBody extends ResponseBody implements Handler.Callback {
+class ProgressResponseBody implements Handler.Callback {
 
     private static final String TAG = "xxx";
     private Handler uiHandler;
-    private MediaType mediaType;
     private BufferedSource source;
 
     private Http.Callback progressListener;
+    private long totalLength;
     private long contentLength;
     private long progress;
 
-    ProgressResponseBody(MediaType type, long length, Source source) {
+    private String url;
+    private File dir;
+    private BufferedSink saveSink;
+    private File file;
+
+    ProgressResponseBody(long length, BufferedSource source) {
         uiHandler = new Handler(Looper.getMainLooper(), this);
-        mediaType = type;
         contentLength = length;
-        this.source = Okio.buffer(new ForwardingSource(source) {
-            @Override
-            public long read(Buffer sink, long byteCount) throws IOException {
-                long readByteCount = super.read(sink, byteCount);
-                if (readByteCount > 0) {
-                    progress += readByteCount;
+        this.source = source;
+    }
+
+    void saveContent() throws IOException {
+        if (saveSink == null && dir != null) {
+            if (!dir.exists() && dir.mkdirs());
+            file = new File(dir, getNameByUrl(url));
+            Log.i(TAG, "contentLength: " + contentLength);
+            if (file.exists()) {
+                if (file.length() == contentLength) {
+                    saveSink = Okio.buffer(Okio.sink(file));
+                } else {
+                    progress = file.length();
                     uiHandler.obtainMessage().sendToTarget();
+                    saveSink = Okio.buffer(Okio.appendingSink(file));
                 }
-                return readByteCount;
+            } else if (file.createNewFile()) {
+                saveSink = Okio.buffer(Okio.sink(file));
             }
-        });
-    }
-
-    @Override
-    public MediaType contentType() {
-        return mediaType;
-    }
-
-    @Override
-    public long contentLength() {
-        return contentLength;
-    }
-
-    @Override
-    public BufferedSource source() {
-        return source;
+            totalLength = progress + contentLength;
+        }
+        Buffer bf = new Buffer();
+        long readCount;
+        while((readCount = source.read(bf, 8192)) > 0) {
+            progress += readCount;
+            uiHandler.obtainMessage().sendToTarget();
+            saveSink.write(bf, readCount);
+            saveSink.flush();
+            bf.clear();
+        }
+        saveSink.close();
+        source.close();
+        bf.close();
     }
 
     @Override
     public boolean handleMessage(Message msg) {
         if (progressListener != null) {
-            progressListener.onProgress((int) (100 * progress / contentLength));
+            progressListener.onProgress((int) (100F * progress / totalLength));
         }
         return true;
     }
 
-    public void setProgressListener(Http.Callback progressListener) {
+    ProgressResponseBody setProgressListener(Http.Callback progressListener) {
         this.progressListener = progressListener;
+        return this;
+    }
+
+    ProgressResponseBody setUrl(String url) {
+        this.url = url;
+        return this;
+    }
+
+    ProgressResponseBody setDir(File dir) {
+        this.dir = dir;
+        return this;
+    }
+
+    static String getNameByUrl(String url) {
+        int nameIndex = url.lastIndexOf('/') + 1;
+        return url.substring(nameIndex);
     }
 }

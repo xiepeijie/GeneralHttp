@@ -3,6 +3,7 @@ package cn.xl.network.http;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.support.annotation.NonNull;
 
 import java.io.IOException;
 
@@ -39,11 +40,11 @@ class ProgressRequestBody extends RequestBody implements Handler.Callback {
     }
 
     @Override
-    public void writeTo(BufferedSink bufferedSink) throws IOException {
+    public void writeTo(@NonNull BufferedSink bufferedSink) throws IOException {
         contentLength = body.contentLength();
         BufferedSink sink = Okio.buffer(new ForwardingSink(bufferedSink) {
             @Override
-            public void write(Buffer source, long byteCount) throws IOException {
+            public void write(@NonNull Buffer source, long byteCount) throws IOException {
                 super.write(source, byteCount);
                 if (byteCount > 0) {
                     progress += byteCount;
@@ -59,7 +60,7 @@ class ProgressRequestBody extends RequestBody implements Handler.Callback {
     @Override
     public boolean handleMessage(Message msg) {
         if (progressListener != null) {
-            progressListener.onProgress((int) (100 * progress / contentLength));
+            progressListener.onProgress((int) (100F * progress / contentLength));
         }
         return true;
     }

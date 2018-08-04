@@ -8,14 +8,12 @@ import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 
-import okhttp3.MediaType;
-import okhttp3.ResponseBody;
 import okio.Buffer;
 import okio.BufferedSink;
 import okio.BufferedSource;
 import okio.Okio;
 
-class ProgressResponseBody implements Handler.Callback {
+class DownloadProcessor implements Handler.Callback {
 
     private static final String TAG = "xxx";
     private Handler uiHandler;
@@ -31,7 +29,7 @@ class ProgressResponseBody implements Handler.Callback {
     private BufferedSink saveSink;
     private File file;
 
-    ProgressResponseBody(long length, BufferedSource source) {
+    DownloadProcessor(long length, BufferedSource source) {
         uiHandler = new Handler(Looper.getMainLooper(), this);
         contentLength = length;
         this.source = source;
@@ -77,17 +75,17 @@ class ProgressResponseBody implements Handler.Callback {
         return true;
     }
 
-    ProgressResponseBody setProgressListener(Http.Callback progressListener) {
+    DownloadProcessor setProgressListener(Http.Callback progressListener) {
         this.progressListener = progressListener;
         return this;
     }
 
-    ProgressResponseBody setUrl(String url) {
+    DownloadProcessor setUrl(String url) {
         this.url = url;
         return this;
     }
 
-    ProgressResponseBody setDir(File dir) {
+    DownloadProcessor setDir(File dir) {
         this.dir = dir;
         return this;
     }

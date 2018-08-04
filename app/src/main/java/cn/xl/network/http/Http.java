@@ -383,7 +383,7 @@ public final class Http implements GenericLifecycleObserver {
                     okhttp3.Request request = chain.request();
                     Response response = chain.proceed(request);
                     ResponseBody body = response.body();
-                    File file = new File(cacheDir, ProgressResponseBody.getNameByUrl(url));
+                    File file = new File(cacheDir, DownloadProcessor.getNameByUrl(url));
                     Log.i(TAG, "breakpoint: " + file.length());
                     if (file.exists() && body != null) {
                         Log.i(TAG, "contentLength: " + body.contentLength());
@@ -409,7 +409,7 @@ public final class Http implements GenericLifecycleObserver {
             @Override
             public String apply(ResponseBody body) throws Exception {
                 Log.i(TAG, "apply: body bytes before");
-                ProgressResponseBody prb = new ProgressResponseBody(body.contentLength(), body.source());
+                DownloadProcessor prb = new DownloadProcessor(body.contentLength(), body.source());
                 prb.setProgressListener(callback).setDir(cacheDir).setUrl(url);
                 prb.saveContent();
                 Log.i(TAG, "apply: body bytes after");

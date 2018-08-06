@@ -1,6 +1,9 @@
 package com.example.payge.network;
 
 import android.app.Application;
+import android.os.Environment;
+
+import java.io.File;
 
 import cn.xl.network.http.Config;
 import cn.xl.network.http.Http;
@@ -18,8 +21,9 @@ public final class App extends Application {
         .addHeader("FrontType", "scp-mobile-patrol-ui")
         .addHeader("terminalType", "android")
         .addHeader("terminalVersion", "2.3.3")
-        .addHeader("traceId", String.format("%s0201%s00000000000000000000000000000000",
-                System.currentTimeMillis(), String.valueOf((int) ((Math.random()*9+1)*Math.pow(10, 6)))));
+        .addHeader("traceId", String.valueOf(System.currentTimeMillis()))
+        .cacheDir(new File(Environment.getExternalStoragePublicDirectory("AAA"), "HTTP"))
+        .maxCacheSize(10 * 1024 * 1024);
         Http.init(this, config);
     }
 }

@@ -1,5 +1,6 @@
 package cn.xl.network.http;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -10,6 +11,8 @@ public final class Config {
     private int readTimeout = 5;
     private int writeTimeout = 5;
     private Map<String, String> headers = new HashMap<>();
+    private File cacheDir;
+    private int maxCacheSize;
 
     public static Config create() {
         return new Config();
@@ -59,6 +62,24 @@ public final class Config {
 
     public Config writeTimeout(int writeTimeout) {
         this.writeTimeout = writeTimeout;
+        return this;
+    }
+
+    public File getCacheDir() {
+        return cacheDir;
+    }
+
+    public Config cacheDir(File dir) {
+        cacheDir = dir;
+        return this;
+    }
+
+    public int getMaxCacheSize() {
+        return maxCacheSize;
+    }
+
+    public Config maxCacheSize(int cacheSize) {
+        maxCacheSize = cacheSize;
         return this;
     }
 }

@@ -35,7 +35,7 @@ class DownloadProcessor implements Handler.Callback {
         this.source = source;
     }
 
-    void saveContent() throws IOException {
+    void process() throws IOException {
         if (saveSink == null && dir != null) {
             if (!dir.exists() && dir.mkdirs());
             file = new File(dir, getNameByUrl(url));

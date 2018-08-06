@@ -1,10 +1,13 @@
 package cn.xl.network.http;
 
 
+import android.app.Application;
 import android.arch.lifecycle.GenericLifecycleObserver;
 import android.arch.lifecycle.Lifecycle;
 import android.arch.lifecycle.LifecycleOwner;
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -31,6 +34,8 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
+import okhttp3.Cache;
+import okhttp3.CacheControl;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -106,11 +111,11 @@ public final class Http implements GenericLifecycleObserver {
     private Interceptor uploadProgressInterceptor;
     private Interceptor downloadProgressInterceptor;
 
-
     private final HashMap<Integer, List<Pair<Integer, Disposable>>> disposableCache = new HashMap<>();
 
     private final Gson gson = new Gson();
 
+    private Application appContext;
     private Toast toast;
     private String toastText;
 
@@ -121,21 +126,19 @@ public final class Http implements GenericLifecycleObserver {
     private Http() {}
 
     public static void init(Context context, final Config config) {
-        if (config == null || config.getBaseUrl() == null) {
-            Log.e(TAG, "Config is null, http can't work");
-            return;
+        if (context == null || config == null || config.getBaseUrl() == null) {
+            throw new IllegalArgumentException("Http init argument error");
         }
         if (api.config == config) {
             Log.e(TAG, "Config not change, http init invalidate");
             return;
         }
+        api.appContext = (Application) context.getApplicationContext();
         api.config = config;
-//        Cache cache = new Cache(new File(context.getCacheDir(), "http"), 10 * 1024 * 1024);
-        api.client = new OkHttpClient.Builder()
-                .connectTimeout(config.getConnectTimeout(), TimeUnit.SECONDS)
+        OkHttpClient.Builder okBuilder = new OkHttpClient.Builder();
+                okBuilder.connectTimeout(config.getConnectTimeout(), TimeUnit.SECONDS)
                 .readTimeout(config.getReadTimeout(), TimeUnit.SECONDS)
                 .writeTimeout(config.getWriteTimeout(), TimeUnit.SECONDS)
-//                .cache(cache)
                 .addInterceptor(new Interceptor() {
                     @Override
                     public Response intercept(Chain chain) throws IOException {
@@ -146,9 +149,17 @@ public final class Http implements GenericLifecycleObserver {
                                 builder.header(entry.getKey(), entry.getValue());
                             }
                         }
+                        if (!api.isNetworkAvailable()) {
+                            builder.cacheControl(CacheControl.FORCE_CACHE);
+                        }
                         return chain.proceed(builder.build());
                     }
-                }).build();
+                });
+        if (config.getCacheDir() != null && config.getMaxCacheSize() != 0) {
+            Cache cache = new Cache(config.getCacheDir(), config.getMaxCacheSize());
+            okBuilder.cache(cache);
+        }
+        api.client = okBuilder.build();
 
         Retrofit.Builder builder = new Retrofit.Builder();
         builder.client(api.client)
@@ -160,8 +171,15 @@ public final class Http implements GenericLifecycleObserver {
 
         api.retrofit = builder.build();
 
-        if (api.toast == null && context != null)
-            api.toast = Toast.makeText(context.getApplicationContext(), "", Toast.LENGTH_SHORT);
+        if (api.toast == null)
+            api.toast = Toast.makeText(api.appContext, "", Toast.LENGTH_SHORT);
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager cm = (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        NetworkInfo networkInfo = cm.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isAvailable();
     }
 
     /**
@@ -301,20 +319,23 @@ public final class Http implements GenericLifecycleObserver {
                             pair = new Pair<>(data, t);
                             callback.onHandle(data, t);
                         } else {
-                            msg = "json parse fail";
+                            msg = "数据解析出错";
                             pair = new Pair<>(msg, null);
                             Log.e(TAG, "apply: " + msg);
                         }
                         return pair;
                     } else {
-                        msg = "response body is null";
+                        msg = "未获取到数据";
                     }
                 } else {
                     ResponseBody errorBody = response.errorBody();
-                    if (errorBody == null) {
-                        msg = "errorBody is null";
-                    } else {
+                    if (errorBody != null) {
                         msg = errorBody.string();
+                    } else {
+                        msg = "";
+                    }
+                    if (msg == null || msg.isEmpty()) {
+                        msg = "网络请求出错";
                     }
                 }
                 Log.e(TAG, "apply: " + msg);
@@ -411,7 +432,7 @@ public final class Http implements GenericLifecycleObserver {
                 Log.i(TAG, "apply: body bytes before");
                 DownloadProcessor prb = new DownloadProcessor(body.contentLength(), body.source());
                 prb.setProgressListener(callback).setDir(cacheDir).setUrl(url);
-                prb.saveContent();
+                prb.process();
                 Log.i(TAG, "apply: body bytes after");
                 return "";
             }
@@ -489,7 +510,7 @@ public final class Http implements GenericLifecycleObserver {
         }
     }
 
-    public static <T> Class<T> getParameterizedTypeClass(Object obj) {
+    private static <T> Class<T> getParameterizedTypeClass(Object obj) {
         ParameterizedType pt = (ParameterizedType) obj.getClass().getGenericSuperclass();
         Type[] atr = pt.getActualTypeArguments();
         if (atr != null && atr.length > 0) {

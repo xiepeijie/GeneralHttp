@@ -28,6 +28,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLSession;
+
 import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -159,15 +162,36 @@ public final class Http implements GenericLifecycleObserver {
             Cache cache = new Cache(config.getCacheDir(), config.getMaxCacheSize());
             okBuilder.cache(cache);
         }
+        if (config.getSslSocketFactory() != null) {
+            okBuilder.sslSocketFactory(config.getSslSocketFactory(), config.getTrustManager());
+            okBuilder.hostnameVerifier(new HostnameVerifier() {
+                @Override
+                public boolean verify(String hostname, SSLSession session) {
+                    if (config.getTrustHostNames().size() > 0) {
+                        boolean ok = false;
+                        for (String trustHost : config.getTrustHostNames()) {
+                            ok = trustHost != null && trustHost.equals(hostname);
+                            if (ok) break;
+                        }
+                        return ok;
+                    } else {
+                        return true;
+                    }
+                }
+            });
+        }
         api.client = okBuilder.build();
 
-        Retrofit.Builder builder = new Retrofit.Builder();
+        Retrofit.Builder builder;
+        if (api.retrofit == null) {
+            builder = new Retrofit.Builder();
+            builder.addConverterFactory(new ConvertFactory(api.gson))
+                    .addCallAdapterFactory(RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io()));
+        } else {
+            builder = api.retrofit.newBuilder();
+        }
         builder.client(api.client)
         .baseUrl(config.getBaseUrl());
-        if (api.retrofit == null) {
-            builder.addConverterFactory(new ConvertFactory(api.gson))
-            .addCallAdapterFactory(RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io()));
-        }
 
         api.retrofit = builder.build();
 

@@ -23,7 +23,8 @@ public final class App extends Application {
         .addHeader("terminalVersion", "2.3.3")
         .addHeader("traceId", String.valueOf(System.currentTimeMillis()))
         .cacheDir(new File(Environment.getExternalStoragePublicDirectory("AAA"), "HTTP"))
-        .maxCacheSize(10 * 1024 * 1024);
+        .maxCacheSize(10 * 1024 * 1024)
+        .ssLProtocolAndCert("TLSv1");
         Http.init(this, config);
     }
 }

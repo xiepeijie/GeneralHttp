@@ -327,13 +327,14 @@ public final class Http implements GenericLifecycleObserver {
 
     private <T, E> void process(final Object tag, @NonNull final Request<E> request, @NonNull final Callback<T> callback,
                                 Observable<retrofit2.Response<String>> observable) {
+        final int[] responseCode = new int[1];
         Observable<Pair<String, T>> mapObservable = observable.map(new Function<retrofit2.Response<String>, Pair<String, T>>() {
             @Override
             public Pair<String, T> apply(retrofit2.Response<String> response) throws Exception {
                 int code;
                 String msg;
                 Pair<String, T> pair;
-                code = response.code();
+                responseCode[0] = code = response.code();
                 if (code == 200) {
                     String data = response.body();
                     if (data != null) {
@@ -388,7 +389,7 @@ public final class Http implements GenericLifecycleObserver {
                             callback.onSuccess(t);
                         } else {
                             Log.i(TAG, "onNext: fail");
-                            callback.onError(-1, pair.first);
+                            callback.onError(responseCode[0], pair.first);
                         }
                     }
 
@@ -396,7 +397,7 @@ public final class Http implements GenericLifecycleObserver {
                     public void onError(Throwable throwable) {
                         Log.e(TAG, "onError", throwable);
                         dispose(hash, pathKey);
-                        callback.onError(-2, throwable.getMessage());
+                        callback.onError(responseCode[0], throwable.getMessage());
                     }
 
                     @Override

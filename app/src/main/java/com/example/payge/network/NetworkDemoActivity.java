@@ -4,16 +4,17 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.PagerSnapHelper;
-import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.PagerSnapHelper;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.payge.network.controller.NetworkDemoController;
@@ -61,14 +62,14 @@ public class NetworkDemoActivity extends AppCompatActivity implements View.OnCli
         controller.login();
         controller.getStoryList(new Http.Callback<StoriesResponse>() {
             @Override
-            protected void onSuccess(StoriesResponse response) {
+            public void onSuccess(StoriesResponse response) {
                 commonAdapter.dataSet.addAll(response.stories);
                 bannerAdapter.banners.addAll(response.top_stories);
                 dataView.setAdapter(bannerAdapter);
             }
 
             @Override
-            protected void onError(int errorCode, String msg) {
+            public void onError(int errorCode, String msg) {
 
             }
         });

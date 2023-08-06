@@ -1,7 +1,8 @@
 package cn.xl.network.http;
 
-import android.support.annotation.NonNull;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 import java.io.File;
 import java.util.Collections;

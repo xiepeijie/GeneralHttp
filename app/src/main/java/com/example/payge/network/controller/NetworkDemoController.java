@@ -28,12 +28,12 @@ public class NetworkDemoController extends Controller {
         Request<LoginRequest> request = Request.jsonRequest("http://10.101.70.235:8040/scp-communityplatformapicomponent/app/login", loginRequest);
         Http.getInstance().post(tag, request, new Http.Callback<LoginResponse>() {
             @Override
-            protected void onSuccess(LoginResponse response) {
+            public void onSuccess(LoginResponse response) {
                 App.token = response.data.token;
             }
 
             @Override
-            protected void onError(int errorCode, String msg) {
+            public void onError(int errorCode, String msg) {
 
             }
         });

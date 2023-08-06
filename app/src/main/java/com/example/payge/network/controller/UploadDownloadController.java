@@ -13,7 +13,7 @@ import cn.xl.network.http.Request;
 
 public class UploadDownloadController extends Controller {
 
-    private final String url = "http://dldir1.qq.com/weixin/android/weixin667android1320.apk";
+    private final String url = "https://850fdbf4b654ed28719b20c93a5685f9.dlied1.cdntips.net/imtt2.dd.qq.com/sjy.00008/sjy.00001/16891/apk/AE13000B0D8F11F2362CC3F9D752600E.apk";
 
     public UploadDownloadController(Object tag) {
         super(tag);
@@ -39,10 +39,6 @@ public class UploadDownloadController extends Controller {
     }
 
     public void download(Http.Callback<Void> callback) {
-        /*
-        http://imtt.dd.qq.com/16891/4FAE27142B24E812D2FD69A9C604CA2D.apk
-         */
-        File dir = Environment.getExternalStoragePublicDirectory("AAA");
         Http.getInstance().download(tag, url, callback);
     }
 

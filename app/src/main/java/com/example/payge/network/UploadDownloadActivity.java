@@ -1,10 +1,11 @@
 package com.example.payge.network;
 
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.payge.network.controller.UploadDownloadController;
 import com.example.payge.network.response.CommonResponse;
@@ -44,12 +45,12 @@ public class UploadDownloadActivity extends AppCompatActivity {
                     }
 
                     @Override
-                    protected void onSuccess(CommonResponse response) {
+                    public void onSuccess(CommonResponse response) {
                         uploadProgress.setProgress(0);
                     }
 
                     @Override
-                    protected void onError(int errorCode, String msg) {
+                    public void onError(int errorCode, String msg) {
 
                     }
                 });
@@ -64,12 +65,12 @@ public class UploadDownloadActivity extends AppCompatActivity {
                         }
 
                         @Override
-                        protected void onSuccess(Void d) {
+                        public void onSuccess(Void d) {
                             downloadProgress.setProgress(0);
                         }
 
                         @Override
-                        protected void onError(int errorCode, String msg) {
+                        public void onError(int errorCode, String msg) {
 
                         }
                     });

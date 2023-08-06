@@ -2,17 +2,18 @@ package cn.xl.network.http;
 
 
 import android.app.Application;
-import android.arch.lifecycle.GenericLifecycleObserver;
-import android.arch.lifecycle.Lifecycle;
-import android.arch.lifecycle.LifecycleOwner;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Environment;
-import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleEventObserver;
+import androidx.lifecycle.LifecycleOwner;
 
 import com.google.gson.Gson;
 
@@ -57,7 +58,7 @@ import retrofit2.http.Streaming;
 import retrofit2.http.Url;
 
 
-public final class Http implements GenericLifecycleObserver {
+public final class Http implements LifecycleEventObserver {
 
     private static final String TAG = "xxx";
     private static final String COMMON_TAG = Http.class.getName() + ".common.tag";
@@ -98,8 +99,8 @@ public final class Http implements GenericLifecycleObserver {
     public static abstract class Callback<T> {
         protected void onStart(){}
         protected void onHandle(String rawData, T t){}
-        protected abstract void onSuccess(T t);
-        protected abstract void onError(int errorCode, String msg);
+        public abstract void onSuccess(T t);
+        public abstract void onError(int errorCode, String msg);
         protected void onProgress(int progress){}
     }
 
@@ -338,7 +339,7 @@ public final class Http implements GenericLifecycleObserver {
                 if (code == 200) {
                     String data = response.body();
                     if (data != null) {
-                        Class<T> cls = getParameterizedTypeClass(callback);
+                        Type cls = getParameterizedTypeClass(callback);
                         T t = gson.fromJson(data, cls);
                         if (t != null) {
                             pair = new Pair<>(data, t);
@@ -535,17 +536,17 @@ public final class Http implements GenericLifecycleObserver {
         }
     }
 
-    private static <T> Class<T> getParameterizedTypeClass(Object obj) {
+    private static Type getParameterizedTypeClass(Object obj) {
         ParameterizedType pt = (ParameterizedType) obj.getClass().getGenericSuperclass();
         Type[] atr = pt.getActualTypeArguments();
-        if (atr != null && atr.length > 0) {
-            return (Class<T>) atr[0];
+        if (atr.length > 0) {
+            return atr[0];
         }
         return null;
     }
 
     @Override
-    public void onStateChanged(LifecycleOwner source, Lifecycle.Event event) {
+    public void onStateChanged(LifecycleOwner source, @NonNull Lifecycle.Event event) {
         if (source.getLifecycle().getCurrentState() == Lifecycle.State.DESTROYED) {
             source.getLifecycle().removeObserver(this);
             cancel(source);
